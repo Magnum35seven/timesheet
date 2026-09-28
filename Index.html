@@ -1,0 +1,522 @@
+<!-- filepath: index.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fortnightly Timesheet System - HRS-422</title>
+    <style>
+        :root {
+            --primary: #1e3a8a;
+            --border: #64748b;
+            --bg: #f8fafc;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            background-color: var(--bg);
+            color: #0f172a;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+        }
+
+        .card {
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 12px;
+            margin-bottom: 15px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        label {
+            font-size: 0.8rem;
+            font-weight: bold;
+            margin-bottom: 4px;
+            color: #334155;
+        }
+
+        input, select, button {
+            padding: 6px 10px;
+            border: 1px solid #cbd5e1;
+            border-radius: 4px;
+            font-size: 0.9rem;
+        }
+
+        button.btn-add {
+            background: #2563eb;
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            border: none;
+            padding: 10px 15px;
+        }
+
+        button.btn-add:hover { background: #1d4ed8; }
+
+        button.btn-print {
+            background: #059669;
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            border: none;
+            padding: 10px 20px;
+            float: right;
+        }
+
+        /* Paper Timesheet Layout */
+        .timesheet-paper {
+            border: 2px solid #000;
+            padding: 15px;
+            background: #fff;
+            margin-top: 20px;
+        }
+
+        .ts-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            border-bottom: 2px solid #000;
+            padding-bottom: 8px;
+            margin-bottom: 10px;
+        }
+
+        .ts-header h2 { margin: 0; font-size: 1.4rem; }
+
+        .ts-grid {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 15px;
+        }
+
+        .ts-grid th, .ts-grid td {
+            border: 1px solid #000;
+            padding: 4px;
+            text-align: center;
+            font-size: 0.8rem;
+        }
+
+        .ts-grid th { background: #f1f5f9; }
+
+        .section-title {
+            background: #e2e8f0;
+            font-weight: bold;
+            text-align: left !important;
+            padding-left: 8px !important;
+        }
+
+        .signatures {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 40px;
+            margin-top: 30px;
+            border-top: 1px dashed #000;
+            padding-top: 15px;
+        }
+
+        .sig-box {
+            border-top: 1px solid #000;
+            margin-top: 30px;
+            padding-top: 5px;
+            font-size: 0.85rem;
+        }
+
+        .footer-note {
+            font-size: 0.7rem;
+            display: flex;
+            justify-content: space-between;
+            margin-top: 15px;
+            color: #475569;
+        }
+
+        /* Print Controls */
+        @media print {
+            .no-print { display: none !important; }
+            body { padding: 0; background: #fff; }
+            .container { max-width: 100%; }
+            .timesheet-paper { border: none; padding: 0; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="no-print">
+        <button class="btn-print" onclick="window.print()">Print Form HRS-422</button>
+        <h1>Fortnightly Shift & Leave Entry</h1>
+        
+        <!-- Entry Controls -->
+        <div class="card">
+            <h3>Add / Update Shift Entry</h3>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>Fortnight Starting Mon</label>
+                    <input type="date" id="fortnightStart" onchange="updatePeriodDates()">
+                </div>
+                <div class="form-group">
+                    <label>Select Day</label>
+                    <select id="entryDay">
+                        <option value="0">Week 1 - Mon</option>
+                        <option value="1">Week 1 - Tue</option>
+                        <option value="2">Week 1 - Wed</option>
+                        <option value="3">Week 1 - Thu</option>
+                        <option value="4">Week 1 - Fri</option>
+                        <option value="5">Week 1 - Sat</option>
+                        <option value="6">Week 1 - Sun</option>
+                        <option value="7">Week 2 - Mon</option>
+                        <option value="8">Week 2 - Tue</option>
+                        <option value="9">Week 2 - Wed</option>
+                        <option value="10">Week 2 - Thu</option>
+                        <option value="11">Week 2 - Fri</option>
+                        <option value="12">Week 2 - Sat</option>
+                        <option value="13">Week 2 - Sun</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Entry Type</label>
+                    <select id="entryType" onchange="toggleEntryType()">
+                        <option value="WORK">Work Shift</option>
+                        <option value="LEAVE">Away / Leave Grid</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Work Specific Inputs -->
+            <div id="workInputs" class="form-grid">
+                <div class="form-group">
+                    <label>Position / Work Code</label>
+                    <select id="position" onchange="autoFillTimes()">
+                        <option value="WB-A">WB-A (Inbound)</option>
+                        <option value="WB-B">WB-B (Inbound)</option>
+                        <option value="WB-C">WB-C (Outbound +0.25)</option>
+                        <option value="WB-D">WB-D (Outbound +0.25)</option>
+                        <option value="BBC">BBC</option>
+                        <option value="LANDFILL">LANDFILL</option>
+                        <option value="SPARE">SPARE</option>
+                        <option value="WATER TRUCK">WATER TRUCK</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Start Time</label>
+                    <input type="time" id="startTime" value="06:45">
+                </div>
+                <div class="form-group">
+                    <label>Finish Time</label>
+                    <input type="time" id="endTime" value="17:15">
+                </div>
+                <div class="form-group">
+                    <label>Lunch Break (hrs)</label>
+                    <input type="number" step="0.25" id="lunchBreak" value="0.50">
+                </div>
+                <div class="form-group">
+                    <label>Meetings/Training (+0.25)</label>
+                    <input type="checkbox" id="addTraining">
+                </div>
+                <div class="form-group">
+                    <label>Acting Supervisor (+0.5)</label>
+                    <input type="checkbox" id="addSupervisor">
+                </div>
+            </div>
+
+            <!-- Leave Specific Inputs -->
+            <div id="leaveInputs" class="form-grid" style="display:none;">
+                <div class="form-group">
+                    <label>Leave Code</label>
+                    <select id="leaveCode">
+                        <option value="AL">AL - Annual Leave</option>
+                        <option value="SL">SL - Sick Leave</option>
+                        <option value="LS">LS - Long Service</option>
+                        <option value="OL">OL - Other Leave</option>
+                        <option value="TT">TT - TOIL Taken</option>
+                        <option value="PH">PH - Public Holiday</option>
+                        <option value="PHW">PHW - Public Holiday Worked</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Leave Hours</label>
+                    <input type="number" step="0.5" id="leaveHours" value="7.6">
+                </div>
+            </div>
+
+            <button class="btn-add" onclick="saveDayEntry()">Save Entry to Timesheet</button>
+        </div>
+    </div>
+
+    <!-- Official HRS-422 Form Display -->
+    <div class="timesheet-paper">
+        <div class="ts-header">
+            <div>
+                <h2>TIMESHEET - FORM HRS-422</h2>
+                <small>AWAY grid: AL=Annual Leave, SL=Sick Leave, LS=Long Service, OL=Other Leave, TT=TOIL Taken, PH=Public Holiday</small>
+            </div>
+            <div>
+                <strong>Period Ending: </strong><span id="periodEndingDisplay">DD/MM/YYYY</span>
+            </div>
+        </div>
+
+        <table class="ts-grid">
+            <thead>
+                <tr>
+                    <th style="width: 15%;">GRID TYPE</th>
+                    <th>MON</th><th>TUE</th><th>WED</th><th>THU</th><th>FRI</th><th>SAT</th><th>SUN</th>
+                    <th>MON</th><th>TUE</th><th>WED</th><th>THU</th><th>FRI</th><th>SAT</th><th>SUN</th>
+                    <th>TOTAL</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- AWAY GRID -->
+                <tr>
+                    <td class="section-title" colspan="16">AWAY GRID (Do not add to work grid totals)</td>
+                </tr>
+                <tr>
+                    <td>Leave Code</td>
+                    <template id="leaveCodeCells"></template>
+                    <td id="leaveCodeRow" colspan="14" style="padding:0;"><div style="display:flex;" id="lCodeContainer"></div></td>
+                    <td>-</td>
+                </tr>
+                <tr>
+                    <td>Leave Hours</td>
+                    <td id="lHrs-0"></td><td id="lHrs-1"></td><td id="lHrs-2"></td><td id="lHrs-3"></td><td id="lHrs-4"></td><td id="lHrs-5"></td><td id="lHrs-6"></td>
+                    <td id="lHrs-7"></td><td id="lHrs-8"></td><td id="lHrs-9"></td><td id="lHrs-10"></td><td id="lHrs-11"></td><td id="lHrs-12"></td><td id="lHrs-13"></td>
+                    <td id="totalLeaveHours">0.00</td>
+                </tr>
+
+                <!-- WORK GRID -->
+                <tr>
+                    <td class="section-title" colspan="16">WORK GRID (Only enter work hours)</td>
+                </tr>
+                <tr>
+                    <td>Work Code / Pos</td>
+                    <td id="wPos-0"></td><td id="wPos-1"></td><td id="wPos-2"></td><td id="wPos-3"></td><td id="wPos-4"></td><td id="wPos-5"></td><td id="wPos-6"></td>
+                    <td id="wPos-7"></td><td id="wPos-8"></td><td id="wPos-9"></td><td id="wPos-10"></td><td id="wPos-11"></td><td id="wPos-12"></td><td id="wPos-13"></td>
+                    <td>-</td>
+                </tr>
+                <tr>
+                    <td>Start Time</td>
+                    <td id="wStart-0"></td><td id="wStart-1"></td><td id="wStart-2"></td><td id="wStart-3"></td><td id="wStart-4"></td><td id="wStart-5"></td><td id="wStart-6"></td>
+                    <td id="wStart-7"></td><td id="wStart-8"></td><td id="wStart-9"></td><td id="wStart-10"></td><td id="wStart-11"></td><td id="wStart-12"></td><td id="wStart-13"></td>
+                    <td>-</td>
+                </tr>
+                <tr>
+                    <td>Finish Time</td>
+                    <td id="wEnd-0"></td><td id="wEnd-1"></td><td id="wEnd-2"></td><td id="wEnd-3"></td><td id="wEnd-4"></td><td id="wEnd-5"></td><td id="wEnd-6"></td>
+                    <td id="wEnd-7"></td><td id="wEnd-8"></td><td id="wEnd-9"></td><td id="wEnd-10"></td><td id="wEnd-11"></td><td id="wEnd-12"></td><td id="wEnd-13"></td>
+                    <td>-</td>
+                </tr>
+                <tr>
+                    <td>Minus Lunch</td>
+                    <td id="wLunch-0"></td><td id="wLunch-1"></td><td id="wLunch-2"></td><td id="wLunch-3"></td><td id="wLunch-4"></td><td id="wLunch-5"></td><td id="wLunch-6"></td>
+                    <td id="wLunch-7"></td><td id="wLunch-8"></td><td id="wLunch-9"></td><td id="wLunch-10"></td><td id="wLunch-11"></td><td id="wLunch-12"></td><td id="wLunch-13"></td>
+                    <td>-</td>
+                </tr>
+                <tr>
+                    <td>Base Hours</td>
+                    <td id="wBase-0"></td><td id="wBase-1"></td><td id="wBase-2"></td><td id="wBase-3"></td><td id="wBase-4"></td><td id="wBase-5"></td><td id="wBase-6"></td>
+                    <td id="wBase-7"></td><td id="wBase-8"></td><td id="wBase-9"></td><td id="wBase-10"></td><td id="wBase-11"></td><td id="wBase-12"></td><td id="wBase-13"></td>
+                    <td id="totalBaseHrs">0.00</td>
+                </tr>
+                <tr>
+                    <td>Outbound WB (+0.25)</td>
+                    <td id="wOut-0"></td><td id="wOut-1"></td><td id="wOut-2"></td><td id="wOut-3"></td><td id="wOut-4"></td><td id="wOut-5"></td><td id="wOut-6"></td>
+                    <td id="wOut-7"></td><td id="wOut-8"></td><td id="wOut-9"></td><td id="wOut-10"></td><td id="wOut-11"></td><td id="wOut-12"></td><td id="wOut-13"></td>
+                    <td id="totalOutboundHrs">0.00</td>
+                </tr>
+                <tr>
+                    <td>Training / Meetings</td>
+                    <td id="wTrn-0"></td><td id="wTrn-1"></td><td id="wTrn-2"></td><td id="wTrn-3"></td><td id="wTrn-4"></td><td id="wTrn-5"></td><td id="wTrn-6"></td>
+                    <td id="wTrn-7"></td><td id="wTrn-8"></td><td id="wTrn-9"></td><td id="wTrn-10"></td><td id="wTrn-11"></td><td id="wTrn-12"></td><td id="wTrn-13"></td>
+                    <td id="totalTrnHrs">0.00</td>
+                </tr>
+                <tr>
+                    <td>Acting Supervisor</td>
+                    <td id="wSup-0"></td><td id="wSup-1"></td><td id="wSup-2"></td><td id="wSup-3"></td><td id="wSup-4"></td><td id="wSup-5"></td><td id="wSup-6"></td>
+                    <td id="wSup-7"></td><td id="wSup-8"></td><td id="wSup-9"></td><td id="wSup-10"></td><td id="wSup-11"></td><td id="wSup-12"></td><td id="wSup-13"></td>
+                    <td id="totalSupHrs">0.00</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <!-- Calculations Summary -->
+        <div style="display:flex; justify-content: space-between; font-size:0.9rem; font-weight:bold; margin-top:10px;">
+            <div>AUTOPAY BASE HOURS: 76.00 hrs</div>
+            <div>TOTAL WORKED HOURS: <span id="grandTotalWork">0.00</span> hrs</div>
+            <div>VARIANCE OVER 76 HRS: <span id="varianceHours">0.00</span> hrs</div>
+        </div>
+
+        <div class="signatures">
+            <div>
+                <div><strong>Completed correctly by:</strong></div>
+                <div class="sig-box">Employee's Signature</div>
+            </div>
+            <div>
+                <div><strong>Checked and authorised by:</strong></div>
+                <div class="sig-box">Supervisor Signature</div>
+            </div>
+        </div>
+
+        <div class="footer-note">
+            <span>HRS-422 HRS Form</span>
+            <span>Uncontrolled document when printed</span>
+            <span>Issued May 2021</span>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Initialize 14-day array structure
+    let daysData = Array(14).fill(null).map(() => ({
+        leaveCode: '',
+        leaveHours: 0,
+        position: '',
+        startTime: '',
+        endTime: '',
+        lunch: 0,
+        baseHours: 0,
+        outboundAdd: 0,
+        trainingAdd: 0,
+        supervisorAdd: 0
+    }));
+
+    function autoFillTimes() {
+        const pos = document.getElementById('position').value;
+        const endTimeInput = document.getElementById('endTime');
+        if (pos === 'WB-C' || pos === 'WB-D') {
+            endTimeInput.value = '17:30';
+        } else {
+            endTimeInput.value = '17:15';
+        }
+    }
+
+    function toggleEntryType() {
+        const type = document.getElementById('entryType').value;
+        document.getElementById('workInputs').style.display = type === 'WORK' ? 'grid' : 'none';
+        document.getElementById('leaveInputs').style.display = type === 'LEAVE' ? 'grid' : 'none';
+    }
+
+    function updatePeriodDates() {
+        const startVal = document.getElementById('fortnightStart').value;
+        if (!startVal) return;
+        
+        const startDate = new Date(startVal);
+        const endDate = new Date(startDate);
+        endDate.setDate(startDate.getDate() + 13);
+
+        document.getElementById('periodEndingDisplay').textContent = endDate.toLocaleDateString('en-AU');
+    }
+
+    function saveDayEntry() {
+        const idx = parseInt(document.getElementById('entryDay').value);
+        const type = document.getElementById('entryType').value;
+
+        if (type === 'LEAVE') {
+            daysData[idx].leaveCode = document.getElementById('leaveCode').value;
+            daysData[idx].leaveHours = parseFloat(document.getElementById('leaveHours').value) || 0;
+        } else {
+            const pos = document.getElementById('position').value;
+            const start = document.getElementById('startTime').value;
+            const end = document.getElementById('endTime').value;
+            const lunch = parseFloat(document.getElementById('lunchBreak').value) || 0;
+
+            const isOutbound = (pos === 'WB-C' || pos === 'WB-D');
+            const hasTraining = document.getElementById('addTraining').checked;
+            const hasSup = document.getElementById('addSupervisor').checked;
+
+            // Calculate Base Hours (Excluding outbound bonus)
+            const [sh, sm] = start.split(':').map(Number);
+            const [eh, em] = end.split(':').map(Number);
+            let totalMins = (eh * 60 + em) - (sh * 60 + sm);
+            let netHours = (totalMins / 60) - lunch;
+
+            daysData[idx].position = pos;
+            daysData[idx].startTime = start;
+            daysData[idx].endTime = end;
+            daysData[idx].lunch = lunch;
+            
+            if (isOutbound) {
+                daysData[idx].baseHours = netHours - 0.25;
+                daysData[idx].outboundAdd = 0.25;
+            } else {
+                daysData[idx].baseHours = netHours;
+                daysData[idx].outboundAdd = 0;
+            }
+
+            daysData[idx].trainingAdd = hasTraining ? 0.25 : 0;
+            daysData[idx].supervisorAdd = hasSup ? 0.5 : 0;
+        }
+
+        renderTimesheet();
+    }
+
+    function renderTimesheet() {
+        let totLeave = 0, totBase = 0, totOut = 0, totTrn = 0, totSup = 0;
+
+        const lContainer = document.getElementById('lCodeContainer');
+        lContainer.innerHTML = '';
+
+        for (let i = 0; i < 14; i++) {
+            const d = daysData[i];
+
+            // Render Leave Row
+            const lDiv = document.createElement('div');
+            lDiv.style.flex = '1';
+            lDiv.style.borderRight = '1px solid #000';
+            lDiv.textContent = d.leaveCode || '-';
+            lContainer.appendChild(lDiv);
+
+            document.getElementById(`lHrs-${i}`).textContent = d.leaveHours ? d.leaveHours.toFixed(2) : '';
+            
+            // Render Work Row
+            document.getElementById(`wPos-${i}`).textContent = d.position;
+            document.getElementById(`wStart-${i}`).textContent = d.startTime;
+            document.getElementById(`wEnd-${i}`).textContent = d.endTime;
+            document.getElementById(`wLunch-${i}`).textContent = d.lunch ? d.lunch.toFixed(2) : '';
+            document.getElementById(`wBase-${i}`).textContent = d.baseHours ? d.baseHours.toFixed(2) : '';
+            document.getElementById(`wOut-${i}`).textContent = d.outboundAdd ? d.outboundAdd.toFixed(2) : '';
+            document.getElementById(`wTrn-${i}`).textContent = d.trainingAdd ? d.trainingAdd.toFixed(2) : '';
+            document.getElementById(`wSup-${i}`).textContent = d.supervisorAdd ? d.supervisorAdd.toFixed(2) : '';
+
+            // Totals
+            totLeave += d.leaveHours;
+            totBase += d.baseHours;
+            totOut += d.outboundAdd;
+            totTrn += d.trainingAdd;
+            totSup += d.supervisorAdd;
+        }
+
+        const grandWork = totBase + totOut + totTrn + totSup;
+        const variance = grandWork - 76.00;
+
+        document.getElementById('totalLeaveHours').textContent = totLeave.toFixed(2);
+        document.getElementById('totalBaseHrs').textContent = totBase.toFixed(2);
+        document.getElementById('totalOutboundHrs').textContent = totOut.toFixed(2);
+        document.getElementById('totalTrnHrs').textContent = totTrn.toFixed(2);
+        document.getElementById('totalSupHrs').textContent = totSup.toFixed(2);
+        
+        document.getElementById('grandTotalWork').textContent = grandWork.toFixed(2);
+        document.getElementById('varianceHours').textContent = variance > 0 ? `+${variance.toFixed(2)}` : variance.toFixed(2);
+    }
+
+    // Default Date Init
+    const today = new Date();
+    document.getElementById('fortnightStart').valueAsDate = today;
+    updatePeriodDates();
+</script>
+
+</body>
+</html>
